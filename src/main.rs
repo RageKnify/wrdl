@@ -5,7 +5,8 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 
-const ENGLISH_FILE: &'static str = "/usr/share/dict/words";
+const ENGLISH_FILE: &'static str = "./en.txt";
+const PORTUGESE_FILE: &'static str = "./pt.txt";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Restriction {
@@ -172,12 +173,32 @@ fn update_possibilities(possibilities: &mut Vec<String>, restrictions: &[Restric
     }
 }
 
+use clap::{ArgEnum, Parser};
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+enum Language {
+    En,
+    Pt,
+}
+
+#[derive(Parser, Debug)]
+#[clap(author, version, about, long_about = None)]
+struct Args {
+    #[clap(arg_enum)]
+    language: Language,
+}
+
 fn main() -> std::io::Result<()> {
-    let mut possibilities: Vec<_> = BufReader::new(File::open(ENGLISH_FILE)?)
+    let args = Args::parse();
+    let file = match args.language {
+        Language::En => ENGLISH_FILE,
+        Language::Pt => PORTUGESE_FILE,
+    };
+
+    let mut possibilities: Vec<_> = BufReader::new(File::open(file)?)
         .lines()
         .map(Result::unwrap)
         .filter(|l| l.len() == 5 && l.chars().all(|letter| letter.is_ascii_alphabetic()))
-        .map(|l| l.to_lowercase())
         .collect();
     let words = possibilities.clone();
     loop {
