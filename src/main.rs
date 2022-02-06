@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
@@ -6,25 +8,33 @@ use std::io::BufReader;
 const ENGLISH_FILE: &'static str = "/usr/share/dict/words";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum PositionRestriction {
-    Here,
-    NotHere,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct ExistRestriction {
-    letter: char,
-    idx: usize,
-    restriction: PositionRestriction,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Restriction {
-    Exists(ExistRestriction),
-    NotExists(char),
+    Here(char, usize),
+    NotHere(char, usize),
+    NoMore(char),
 }
 
-fn calculate_guess(possibilities: &[String]) -> String {
+impl Ord for Restriction {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Self::Here(_, self_idx), Self::Here(_, other_idx)) => self_idx.cmp(other_idx),
+            (Self::Here(_, _), _) => std::cmp::Ordering::Less,
+            (Self::NotHere(_, self_idx), Self::NotHere(_, other_idx)) => self_idx.cmp(other_idx),
+            (Self::NotHere(_, _), Self::Here(_, _)) => std::cmp::Ordering::Greater,
+            (Self::NotHere(_, _), Self::NoMore(_)) => std::cmp::Ordering::Less,
+            (Self::NoMore(self_char), Self::NoMore(other_char)) => self_char.cmp(other_char),
+            (Self::NoMore(_), _) => std::cmp::Ordering::Greater,
+        }
+    }
+}
+
+impl PartialOrd for Restriction {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        return Some(self.cmp(other));
+    }
+}
+
+fn calculate_guesses(possibilities: &[String], words: &[String]) -> Vec<String> {
     // figure out which guess gives the most info
     let mut letter_counts: HashMap<char, usize> = HashMap::new();
     for possibility in possibilities.iter() {
@@ -32,32 +42,42 @@ fn calculate_guess(possibilities: &[String]) -> String {
             *letter_counts.entry(letter).or_default() += 1;
         }
     }
-    let n = possibilities.len();
-    let min_appearances = n / 2 - n / 3;
-    let max_appearances = n / 2 + n / 3;
 
-    let mut average_letters: Vec<_> = letter_counts
-        .iter()
-        .filter(|(_, &val)| val > min_appearances && val < max_appearances)
-        .collect();
-
-    average_letters.sort_unstable_by(|a, b| a.1.cmp(b.1));
-
-    let mut chosen = possibilities.to_vec();
-    while average_letters.len() > 0 {
-        if chosen.len() == 1 {
-            return chosen[0].clone();
+    let half = possibilities.len() / 2;
+    let mut letter_counts_vec: VecDeque<_> = letter_counts.iter().collect();
+    letter_counts_vec
+        .make_contiguous()
+        .sort_unstable_by_key(|tup| tup.1);
+    while letter_counts_vec.len() > 5 {
+        let &(_, front) = letter_counts_vec.front().unwrap();
+        let &(_, back) = letter_counts_vec.back().unwrap();
+        let distance_back = if half > *back {
+            half - back
+        } else {
+            back - half
+        };
+        if (half - front) > (distance_back) {
+            letter_counts_vec.pop_front();
+        } else {
+            letter_counts_vec.pop_back();
         }
-        let mid = average_letters.len() / 2;
-        let (letter, _) = average_letters.remove(mid);
+    }
+
+    let mut chosen = words.to_vec();
+    while letter_counts_vec.len() > 0 {
+        if chosen.len() == 1 {
+            return chosen;
+        }
+        let mid = letter_counts_vec.len() / 2;
+        let (letter, _) = letter_counts_vec.remove(mid).unwrap();
         let mut next_chosen = chosen.clone();
-        next_chosen.retain(|possibility| possibility.contains(*letter));
+        next_chosen.retain(|word| word.contains(*letter));
         if next_chosen.len() > 0 {
             chosen = next_chosen;
         }
     }
 
-    chosen[0].clone()
+    chosen
 }
 
 fn handle_guess() -> Vec<Restriction> {
@@ -98,55 +118,43 @@ fn handle_guess() -> Vec<Restriction> {
     let res_iter = trimmed_res
         .chars()
         .map(|num| num.to_digit(10).expect("result should be digits"));
-    guess_iter
+    let mut restrictions: Vec<_> = guess_iter
         .zip(res_iter)
         .enumerate()
         .map(|(idx, (letter, num))| match num {
-            2 => Restriction::Exists(ExistRestriction {
-                letter,
-                idx,
-                restriction: PositionRestriction::Here,
-            }),
-            1 => Restriction::Exists(ExistRestriction {
-                letter,
-                idx,
-                restriction: PositionRestriction::NotHere,
-            }),
-            0 => Restriction::NotExists(letter),
+            2 => Restriction::Here(letter, idx),
+            1 => Restriction::NotHere(letter, idx),
+            0 => Restriction::NoMore(letter),
             _ => unreachable!(),
         })
-        .collect()
+        .collect();
+    restrictions.sort_unstable();
+    restrictions
 }
 
 fn update_possibilities(possibilities: &mut Vec<String>, restrictions: &[Restriction]) {
     // remove possibilities that don't respect any of the restrictions
     let respects = |possibility: &String| -> bool {
-        for (possibility_idx, possibility_letter) in possibility.chars().enumerate() {
-            for restriction in restrictions {
-                match restriction {
-                    Restriction::Exists(ExistRestriction {
-                        letter,
-                        idx,
-                        restriction,
-                    }) => {
-                        match (
-                            possibility_letter == *letter,
-                            possibility_idx == *idx,
-                            PositionRestriction::Here == *restriction,
-                        ) {
-                            (false, true, true) => {
-                                return false;
-                            }
-                            (true, true, false) => {
-                                return false;
-                            }
-                            _ => (),
-                        }
+        let mut found = HashSet::new();
+        for restriction in restrictions {
+            match restriction {
+                Restriction::Here(letter, idx) => {
+                    if possibility.as_bytes()[*idx] != *letter as u8 {
+                        return false;
                     }
-                    Restriction::NotExists(bad_letter) => {
-                        if possibility_letter == *bad_letter {
-                            return false;
-                        }
+                    found.insert(letter);
+                }
+                Restriction::NotHere(letter, idx) => {
+                    let not_here = possibility.as_bytes()[*idx] != *letter as u8;
+                    let else_where = possibility.as_bytes().contains(&(*letter as u8));
+                    if !(not_here && else_where) {
+                        return false;
+                    }
+                    found.insert(letter);
+                }
+                Restriction::NoMore(letter) => {
+                    if possibility.contains(*letter) && !found.contains(letter) {
+                        return false;
                     }
                 }
             }
@@ -171,15 +179,30 @@ fn main() -> std::io::Result<()> {
         .filter(|l| l.len() == 5 && l.chars().all(|letter| letter.is_ascii_alphabetic()))
         .map(|l| l.to_lowercase())
         .collect();
-    while possibilities.len() > 1 {
-        let guess_suggestion = calculate_guess(&possibilities);
-        println!("I think you should try: {}", guess_suggestion);
+    let words = possibilities.clone();
+    loop {
+        let guess_suggestions = calculate_guesses(&possibilities, &words);
+        println!("I suggest you try one of the following:");
+        for suggestion in guess_suggestions.iter().take(5) {
+            println!("\t{suggestion}");
+        }
 
         let new_restrictions = handle_guess();
 
         update_possibilities(&mut possibilities, &new_restrictions);
+
+        if possibilities.len() <= 1 {
+            break;
+        }
+
+        if possibilities.len() <= 5 {
+            println!("I have narrowed it down to these ones if you're feeling lucky:");
+            for word in &possibilities {
+                println!("\t{word}");
+            }
+        }
     }
-    if let Some(answer) = possibilities.get(1) {
+    if let Some(answer) = possibilities.get(0) {
         println!("The answer should be: {}", answer);
     } else {
         println!("Answer not in my wordlist :(");
