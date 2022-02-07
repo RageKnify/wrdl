@@ -5,8 +5,10 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 
-const ENGLISH_FILE: &'static str = "./en.txt";
-const PORTUGESE_FILE: &'static str = "./pt.txt";
+const EN_WORDS_FILE: &'static str = "./en_words.txt";
+const EN_POSSIBILITIES_FILE: &'static str = "./en_possibilities.txt";
+const PT_WORDS_FILE: &'static str = "./pt_words.txt";
+const PT_POSSIBILITIES_FILE: &'static str = "./pt_possibilities.txt";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Restriction {
@@ -188,19 +190,23 @@ struct Args {
     language: Language,
 }
 
-fn main() -> std::io::Result<()> {
-    let args = Args::parse();
-    let file = match args.language {
-        Language::En => ENGLISH_FILE,
-        Language::Pt => PORTUGESE_FILE,
-    };
-
-    let mut possibilities: Vec<_> = BufReader::new(File::open(file)?)
+fn load_words(file_name: &str) -> std::io::Result<Vec<String>> {
+    Ok(BufReader::new(File::open(file_name)?)
         .lines()
         .map(Result::unwrap)
-        .filter(|l| l.len() == 5 && l.chars().all(|letter| letter.is_ascii_alphabetic()))
-        .collect();
-    let words = possibilities.clone();
+        .collect())
+}
+
+fn main() -> std::io::Result<()> {
+    let args = Args::parse();
+    let (possibilities_file, words_file) = {
+        match args.language {
+            Language::En => (EN_POSSIBILITIES_FILE, EN_WORDS_FILE),
+            Language::Pt => (PT_POSSIBILITIES_FILE, PT_WORDS_FILE),
+        }
+    };
+
+    let (mut possibilities, words) = (load_words(possibilities_file)?, load_words(words_file)?);
     loop {
         let guess_suggestions = calculate_guesses(&possibilities, &words);
         println!("I suggest you try one of the following:");
