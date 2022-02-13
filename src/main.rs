@@ -47,36 +47,35 @@ fn calculate_guesses(possibilities: &[String], words: &[String]) -> Vec<String> 
     }
 
     let half = possibilities.len() / 2;
-    let mut letter_counts_vec: VecDeque<_> = letter_counts.iter().collect();
+    let mut letter_counts_vec: VecDeque<_> = letter_counts
+        .iter()
+        .map(|(letter, count)| {
+            (
+                *letter,
+                if half > *count {
+                    half - count
+                } else {
+                    count - half
+                },
+            )
+        })
+        .collect();
     letter_counts_vec
         .make_contiguous()
         .sort_unstable_by_key(|tup| tup.1);
-    while letter_counts_vec.len() > 5 {
-        let &(_, front) = letter_counts_vec.front().unwrap();
-        let &(_, back) = letter_counts_vec.back().unwrap();
-        let distance_back = if half > *back {
-            half - back
-        } else {
-            back - half
-        };
-        if (half - front) > (distance_back) {
-            letter_counts_vec.pop_front();
-        } else {
-            letter_counts_vec.pop_back();
-        }
-    }
 
     let mut chosen = words.to_vec();
-    while letter_counts_vec.len() > 0 {
+    let mut chosen_letters = 0;
+    while letter_counts_vec.len() > 0 && chosen_letters < 5 {
         if chosen.len() == 1 {
             return chosen;
         }
-        let mid = letter_counts_vec.len() / 2;
-        let (letter, _) = letter_counts_vec.remove(mid).unwrap();
+        let (letter, _) = letter_counts_vec.pop_front().unwrap();
         let mut next_chosen = chosen.clone();
-        next_chosen.retain(|word| word.contains(*letter));
+        next_chosen.retain(|word| word.contains(letter));
         if next_chosen.len() > 0 {
             chosen = next_chosen;
+            chosen_letters += 1;
         }
     }
 
