@@ -1,0 +1,73 @@
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+name: Continuous integration
+
+jobs:
+  test_on_linux:
+    name: Tests on Linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+      - name: Cache cargo
+        uses: actions/cache@v2.1.7
+        with:
+          path: |
+            target
+            ~/.cargo/git
+            ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run cargo-tarpaulin
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          args: --ignore-tests
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v2.1.0
+  fmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          components: rustfmt
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - uses: actions-rs/toolchain@v1.0.7
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+          components: clippy
+      - name: Cache cargo
+        uses: actions/cache@v2.1.7
+        with:
+          path: |
+            target
+            ~/.cargo/git
+            ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.lock') }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- --verbose
