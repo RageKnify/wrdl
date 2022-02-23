@@ -230,6 +230,11 @@ fn main() -> std::io::Result<()> {
             for word in &possibilities {
                 println!("\t{word}");
             }
+        } else {
+            println!(
+                "I have narrowed it down to {} possibilities",
+                possibilities.len()
+            );
         }
     }
     if let Some(answer) = possibilities.get(0) {
