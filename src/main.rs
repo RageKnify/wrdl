@@ -9,6 +9,8 @@ const EN_WORDS_FILE: &'static str = "./en_words.txt";
 const EN_POSSIBILITIES_FILE: &'static str = "./en_possibilities.txt";
 const PT_WORDS_FILE: &'static str = "./pt_words.txt";
 const PT_POSSIBILITIES_FILE: &'static str = "./pt_possibilities.txt";
+const BR_WORDS_FILE: &'static str = "./br_words.txt";
+const BR_POSSIBILITIES_FILE: &'static str = "./br_possibilities.txt";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Restriction {
@@ -180,6 +182,7 @@ use clap::{ArgEnum, Parser};
 enum Language {
     En,
     Pt,
+    Br,
 }
 
 #[derive(Parser, Debug)]
@@ -202,6 +205,7 @@ fn main() -> std::io::Result<()> {
         match args.language {
             Language::En => (EN_POSSIBILITIES_FILE, EN_WORDS_FILE),
             Language::Pt => (PT_POSSIBILITIES_FILE, PT_WORDS_FILE),
+            Language::Br => (BR_POSSIBILITIES_FILE, BR_WORDS_FILE),
         }
     };
 
