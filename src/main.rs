@@ -5,12 +5,12 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 
-const EN_WORDS_FILE: & str = "./en_words.txt";
-const EN_POSSIBILITIES_FILE: & str = "./en_possibilities.txt";
-const PT_WORDS_FILE: & str = "./pt_words.txt";
-const PT_POSSIBILITIES_FILE: & str = "./pt_possibilities.txt";
-const BR_WORDS_FILE: & str = "./br_words.txt";
-const BR_POSSIBILITIES_FILE: & str = "./br_possibilities.txt";
+const EN_WORDS_FILE: &str = "./en_words.txt";
+const EN_POSSIBILITIES_FILE: &str = "./en_possibilities.txt";
+const PT_WORDS_FILE: &str = "./pt_words.txt";
+const PT_POSSIBILITIES_FILE: &str = "./pt_possibilities.txt";
+const BR_WORDS_FILE: &str = "./br_words.txt";
+const BR_POSSIBILITIES_FILE: &str = "./br_possibilities.txt";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Restriction {
