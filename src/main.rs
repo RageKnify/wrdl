@@ -5,12 +5,12 @@ use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
 
-const EN_WORDS_FILE: &'static str = "./en_words.txt";
-const EN_POSSIBILITIES_FILE: &'static str = "./en_possibilities.txt";
-const PT_WORDS_FILE: &'static str = "./pt_words.txt";
-const PT_POSSIBILITIES_FILE: &'static str = "./pt_possibilities.txt";
-const BR_WORDS_FILE: &'static str = "./br_words.txt";
-const BR_POSSIBILITIES_FILE: &'static str = "./br_possibilities.txt";
+const EN_WORDS_FILE: & str = "./en_words.txt";
+const EN_POSSIBILITIES_FILE: & str = "./en_possibilities.txt";
+const PT_WORDS_FILE: & str = "./pt_words.txt";
+const PT_POSSIBILITIES_FILE: & str = "./pt_possibilities.txt";
+const BR_WORDS_FILE: & str = "./br_words.txt";
+const BR_POSSIBILITIES_FILE: & str = "./br_possibilities.txt";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Restriction {
@@ -35,7 +35,7 @@ impl Ord for Restriction {
 
 impl PartialOrd for Restriction {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        return Some(self.cmp(other));
+        Some(self.cmp(other))
     }
 }
 
@@ -68,14 +68,14 @@ fn calculate_guesses(possibilities: &[String], words: &[String]) -> Vec<String> 
 
     let mut chosen = words.to_vec();
     let mut chosen_letters = 0;
-    while letter_counts_vec.len() > 0 && chosen_letters < 5 {
+    while !letter_counts_vec.empty() && chosen_letters < 5 {
         if chosen.len() == 1 {
             return chosen;
         }
         let (letter, _) = letter_counts_vec.pop_front().unwrap();
         let mut next_chosen = chosen.clone();
         next_chosen.retain(|word| word.contains(letter));
-        if next_chosen.len() > 0 {
+        if !next_chosen.empty() {
             chosen = next_chosen;
             chosen_letters += 1;
         }
