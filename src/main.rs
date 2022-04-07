@@ -68,14 +68,14 @@ fn calculate_guesses(possibilities: &[String], words: &[String]) -> Vec<String> 
 
     let mut chosen = words.to_vec();
     let mut chosen_letters = 0;
-    while !letter_counts_vec.empty() && chosen_letters < 5 {
+    while !letter_counts_vec.is_empty() && chosen_letters < 5 {
         if chosen.len() == 1 {
             return chosen;
         }
         let (letter, _) = letter_counts_vec.pop_front().unwrap();
         let mut next_chosen = chosen.clone();
         next_chosen.retain(|word| word.contains(letter));
-        if !next_chosen.empty() {
+        if !next_chosen.is_empty() {
             chosen = next_chosen;
             chosen_letters += 1;
         }
